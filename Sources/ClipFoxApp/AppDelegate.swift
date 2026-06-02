@@ -19,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             self.state = state
             self.windowController = windowController
-            self.statusBar = StatusBarController(windowController: windowController)
+            self.statusBar = StatusBarController(state: state, windowController: windowController)
 
             let monitor = ClipboardMonitor(state: state)
             monitor.start()
