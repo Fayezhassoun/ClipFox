@@ -66,6 +66,26 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         clear.isEnabled = !items.allSatisfy(\.isPinned) && !items.isEmpty
         menu.addItem(clear)
 
+        if LaunchAtLogin.isAvailable {
+            let launch = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+            launch.target = self
+            launch.state = LaunchAtLogin.isEnabled ? .on : .off
+            menu.addItem(launch)
+        }
+
+        menu.addItem(NSMenuItem.separator())
+
+        let privacyNote = NSMenuItem(title: "Skipping concealed clips from password managers", action: nil, keyEquivalent: "")
+        privacyNote.isEnabled = false
+        privacyNote.attributedTitle = NSAttributedString(
+            string: "Skipping concealed clips from password managers",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                .foregroundColor: NSColor.tertiaryLabelColor
+            ]
+        )
+        menu.addItem(privacyNote)
+
         menu.addItem(NSMenuItem.separator())
 
         let quit = NSMenuItem(title: "Quit ClipFox", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -119,5 +139,16 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func clearUnpinned() {
         state.clearUnpinned()
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        do {
+            try LaunchAtLogin.setEnabled(!LaunchAtLogin.isEnabled)
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Could not change Launch at Login"
+            alert.informativeText = error.localizedDescription
+            alert.runModal()
+        }
     }
 }
