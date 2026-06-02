@@ -2,11 +2,23 @@
 
 Native macOS clipboard history app inspired by Maccy.
 
-## Run
+## Run from source
 
 ```bash
 swift run ClipFox
 ```
+
+## Build an installable .app and DMG
+
+```bash
+Scripts/build-app.sh   # → build/ClipFox.app  (ad-hoc signed)
+Scripts/make-dmg.sh    # → build/ClipFox-0.1.0.dmg
+```
+
+The DMG is unsigned by Apple, so the first launch on another Mac
+needs **right-click → Open → Open** to bypass Gatekeeper. After
+that, macOS will prompt for **Accessibility** permission (needed
+for paste-on-select) in System Settings → Privacy & Security.
 
 ## Verify
 
