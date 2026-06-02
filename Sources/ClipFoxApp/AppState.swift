@@ -13,15 +13,18 @@ final class AppState: ObservableObject {
     private let store: ClipboardHistoryStore
     private let pasteboard: NSPasteboard
     private let cloudSync: CloudClipboardSyncing
+    private let obsidian: ObsidianBridging
 
     init(
         store: ClipboardHistoryStore,
         pasteboard: NSPasteboard = .general,
-        cloudSync: CloudClipboardSyncing = CloudClipboardSync()
+        cloudSync: CloudClipboardSyncing = CloudClipboardSync(),
+        obsidian: ObsidianBridging = ObsidianBridge()
     ) {
         self.store = store
         self.pasteboard = pasteboard
         self.cloudSync = cloudSync
+        self.obsidian = obsidian
         do {
             self.history = try store.load()
         } catch {
@@ -73,6 +76,26 @@ final class AppState: ObservableObject {
         history.clearUnpinned()
         save()
         scheduleCloudSync()
+    }
+
+    func sendToObsidianInbox(_ item: ClipboardItem) {
+        do {
+            try obsidian.appendToInbox(item)
+            lastError = nil
+        } catch ObsidianBridgeError.duplicate {
+            lastError = "Already in Obsidian inbox."
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func openInObsidianAsNote(_ item: ClipboardItem) {
+        do {
+            try obsidian.openAsNewNote(item)
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
     }
 
     func refreshCloudStatus() async {

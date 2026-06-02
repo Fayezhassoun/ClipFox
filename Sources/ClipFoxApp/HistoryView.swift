@@ -32,6 +32,13 @@ struct HistoryView: View {
                                     onClose()
                                 }
                                 Divider()
+                                Button("Send to Obsidian Inbox") {
+                                    state.sendToObsidianInbox(item)
+                                }
+                                Button("Open as Obsidian Note") {
+                                    state.openInObsidianAsNote(item)
+                                }
+                                Divider()
                                 Button("Delete", role: .destructive) {
                                     state.delete(item)
                                 }
