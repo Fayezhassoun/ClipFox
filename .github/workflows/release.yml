@@ -1,0 +1,110 @@
+name: Release ClipFox
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build release binary
+        run: swift build -c release --product ClipFox
+
+      - name: Assemble .app bundle
+        env:
+          VERSION: ${{ github.ref_name }}
+          APP_NAME: ClipFox
+          BUNDLE_ID: com.fayez.clipfox
+          BUILD_DIR: build
+        run: |
+          PKG_DIR=$(pwd)
+          BIN_DIR=$(swift build -c release --product "${APP_NAME}" --show-bin-path)
+          EXEC_SRC="$BIN_DIR/${APP_NAME}"
+          APP_PATH="$PKG_DIR/build/${APP_NAME}.app"
+          rm -rf "$APP_PATH"
+          mkdir -p "$APP_PATH/Contents/MacOS"
+          mkdir -p "$APP_PATH/Contents/Resources"
+          cp "$EXEC_SRC" "$APP_PATH/Contents/MacOS/${APP_NAME}"
+          chmod +x "$APP_PATH/Contents/MacOS/${APP_NAME}"
+          cat > "$APP_PATH/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleDevelopmentRegion</key>
+            <string>en</string>
+            <key>CFBundleExecutable</key>
+            <string>${APP_NAME}</string>
+            <key>CFBundleIdentifier</key>
+            <string>${BUNDLE_ID}</string>
+            <key>CFBundleInfoDictionaryVersion</key>
+            <string>6.0</string>
+            <key>CFBundleName</key>
+            <string>${APP_NAME}</string>
+            <key>CFBundleDisplayName</key>
+            <string>${APP_NAME}</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${VERSION}</string>
+            <key>CFBundleVersion</key>
+            <string>${VERSION}</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>14.0</string>
+            <key>LSUIElement</key>
+            <true/>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+            <key>NSHumanReadableCopyright</key>
+            <string>Copyright © 2026 Fayez Hassoun. All rights reserved.</string>
+          </dict>
+          </plist>
+          PLIST
+          cp Config/ClipFox-iCloud.entitlements "$APP_PATH/Contents/Resources/ClipFox.entitlements"
+          codesign --force --deep --sign - \
+            --entitlements Config/ClipFox-iCloud.entitlements \
+            --options runtime \
+            "$APP_PATH" 2>&1 | tail -5 || true
+          if ! codesign -dv "$APP_PATH" >/dev/null 2>&1; then
+            codesign --force --deep --sign - \
+              --entitlements Config/ClipFox-iCloud.entitlements \
+              "$APP_PATH"
+          fi
+
+      - name: Create DMG
+        run: |
+          PKG_DIR=$(pwd)
+          APP_NAME="ClipFox"
+          VERSION="${{ github.ref_name }}"
+          BUILD_DIR="build"
+          APP_PATH="$BUILD_DIR/$APP_NAME.app"
+          DMG_PATH="$BUILD_DIR/$APP_NAME-$VERSION.dmg"
+          STAGING_DIR="$BUILD_DIR/dmg-staging"
+          rm -rf "$STAGING_DIR"
+          mkdir -p "$STAGING_DIR"
+          cp -R "$APP_PATH" "$STAGING_DIR/"
+          ln -s /Applications "$STAGING_DIR/Applications"
+          hdiutil create \
+            -volname "$APP_NAME" \
+            -srcfolder "$STAGING_DIR" \
+            -ov \
+            -format UDZO \
+            "$DMG_PATH" >/dev/null
+          rm -rf "$STAGING_DIR"
+          echo "DMG_PATH=${DMG_PATH}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/ClipFox-${{ github.ref_name }}.dmg
+          generate_release_notes: true
+          draft: false
+          prerelease: false
